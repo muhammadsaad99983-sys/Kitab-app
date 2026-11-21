@@ -1,7 +1,62 @@
 <!DOCTYPE html><html lang="ur" dir="rtl"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>کتب خانہ</title><link rel="stylesheet" href="style.css"></head><body>
-<header><h1>📚 کتب خانہ</h1><input id="q" placeholder="کتاب یا مصنف تلاش کریں…"></header>
-<div id="chips"></div><main id="view"></main>
+<title>کتاب ایپ</title>
+<style>
+:root{--g:#0f766e;--g2:#14532d;--bg:#f4f7f5;--card:#fff;--tx:#10231d;--mut:#5b6f67}
+body.night{--bg:#0b1512;--card:#13241f;--tx:#e6f2ee;--mut:#8fa89f}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{margin:0;background:var(--bg);color:var(--tx);font-family:'Noto Nastaliq Urdu','Jameel Noori Nastaleeq','Noto Naskh Arabic',serif;line-height:2;padding-bottom:78px}
+header{background:linear-gradient(135deg,var(--g),var(--g2));color:#fff;padding:calc(env(safe-area-inset-top) + 12px) 16px 18px;border-radius:0 0 24px 24px;position:sticky;top:0;z-index:5}
+header h1{margin:0 0 6px;font-size:22px}
+#q{width:100%;border:0;border-radius:14px;padding:8px 14px;font:inherit;font-size:15px;background:#fff;color:#10231d}
+main{padding-top:12px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;padding:4px 14px}
+.card{background:var(--card);border-radius:16px;overflow:hidden;box-shadow:0 2px 8px #0001}
+.cover{height:130px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:18px;text-align:center;padding:8px;border-bottom:4px solid #d4af5a;background-image:radial-gradient(circle at 80% 20%,#ffffff33,transparent 60%)}
+.meta{padding:6px 10px 10px;font-size:13px;color:var(--mut);line-height:1.8}
+.meta b{display:block;color:var(--tx);font-size:14px}
+nav{position:fixed;bottom:0;left:0;right:0;display:flex;background:var(--card);border-top:1px solid #0001;padding-bottom:env(safe-area-inset-bottom);z-index:6}
+nav button{flex:1;border:0;background:none;font-size:20px;padding:6px;color:var(--mut);font-family:inherit}
+nav button span{display:block;font-size:12px;line-height:1.4}nav .on{color:var(--g)}
+.bar{display:flex;gap:8px;padding:8px 14px;align-items:center;position:sticky;top:0;background:var(--bg);z-index:4}
+.bar button,.btn{border:0;background:var(--g);color:#fff;border-radius:10px;padding:2px 14px;font:inherit}
+.pages{display:flex;flex-direction:column;align-items:center;gap:8px;padding:0 8px}
+.pg{background:#fff;box-shadow:0 1px 6px #0003}.pg canvas{display:block}
+body.night canvas{filter:invert(1) hue-rotate(180deg)}
+.empty{text-align:center;color:var(--mut);padding:40px 20px}
+</style></head><body>
+<header><h1>📖 کتاب ایپ</h1><input id="q" type="search" placeholder="🔍 کتاب یا مصنف تلاش کریں…" autocomplete="off"></header>
+<main id="v"></main>
 <nav><button data-t="home" class="on">🏠<span>ہوم</span></button><button data-t="fav">❤️<span>پسندیدہ</span></button><button data-t="about">ℹ️<span>تعارف</span></button></nav>
-<script src="app.js"></script></body></html>
+<script src="lib/pdf.min.js"></script>
+<script>
+let B=[],tab='home';
+const $=s=>document.querySelector(s),V=$('#v'),H=$('header');
+const norm=s=>(s||'').replace(/[\u064B-\u065F\u0670]/g,'').replace(/[يى]/g,'ی').replace(/ك/g,'ک').replace(/[ةۃھە]/g,'ہ').replace(/[أإآ]/g,'ا').toLowerCase();
+const fav=()=>{try{return JSON.parse(localStorage.fav||'[]')}catch(e){return[]}};
+const save=(k,v)=>{try{localStorage[k]=v}catch(e){}};
+fetch('books.json').then(r=>r.json()).then(d=>{B=d.map(b=>({...b,s:norm(b.title+' '+b.author)}));render()}).catch(()=>render());
+function render(){H.style.display='';window.onscroll=null;let l=B;const q=norm($('#q').value.trim()).split(/\s+/).filter(Boolean);
+if(tab=='about'){V.innerHTML='<div class="empty">کتاب ایپ میں منتخب کتابیں پڑھیں۔<br><br><button class="btn" onclick="document.body.classList.toggle(\'night\')">🌙 رات / دن موڈ</button></div>';return}
+if(tab=='fav')l=l.filter(b=>fav().includes(b.id));
+if(q.length)l=l.filter(b=>q.every(w=>b.s.includes(w)));
+V.innerHTML=l.length?`<div class="grid">${l.map(b=>`<div class="card" onclick="openBook(${B.indexOf(b)})"><div class="cover" style="background-color:${b.color}">${b.title}</div><div class="meta"><b>${b.author||'&nbsp;'}</b></div></div>`).join('')}</div>`:`<div class="empty">${B.length?'کوئی کتاب نہیں ملی':'ابھی کوئی کتاب شامل نہیں کی گئی'}</div>`}
+async function openBook(i){const b=B[i];H.style.display='none';const f=fav().includes(b.id);
+V.innerHTML=`<div class="bar"><button onclick="render()">← واپس</button><button onclick="tg(${i})">${f?'❤️':'🤍'}</button><span id="st">لوڈ ہو رہی ہے…</span></div><div id="pages" class="pages"></div>`;scrollTo(0,0);
+try{pdfjsLib.GlobalWorkerOptions.workerSrc='lib/pdf.worker.min.js';
+const pdf=await pdfjsLib.getDocument(encodeURI(b.file)).promise,box=$('#pages');
+const w=Math.min(innerWidth,900)-16,dpr=Math.min(devicePixelRatio||1,2);
+const p1=await pdf.getPage(1),v0=p1.getViewport({scale:1}),sc=w/v0.width;
+const io=new IntersectionObserver(es=>es.forEach(async e=>{const t=e.target;if(!e.isIntersecting||t.dataset.d)return;t.dataset.d=1;
+const p=await pdf.getPage(+t.dataset.n),vp=p.getViewport({scale:sc*dpr}),c=document.createElement('canvas');
+c.width=vp.width;c.height=vp.height;c.style.width=w+'px';t.appendChild(c);
+await p.render({canvasContext:c.getContext('2d'),viewport:vp}).promise;t.style.height='auto'}),{rootMargin:'800px'});
+for(let n=1;n<=pdf.numPages;n++){const d=document.createElement('div');d.className='pg';d.dataset.n=n;d.style.width=w+'px';d.style.height=v0.height*sc+'px';box.appendChild(d);io.observe(d)}
+$('#st').textContent=pdf.numPages+' صفحات';
+const k='pos_'+b.id,s=+localStorage[k]||0;if(s)setTimeout(()=>scrollTo(0,s),300);
+window.onscroll=()=>save(k,scrollY)}
+catch(e){$('#st').textContent='کتاب نہیں کھل سکی'}}
+function tg(i){const id=B[i].id;let f=fav();f=f.includes(id)?f.filter(x=>x!=id):[...f,id];save('fav',JSON.stringify(f));openBook(i)}
+$('#q').oninput=()=>{if(tab=='about')tab='home';render()};
+document.querySelectorAll('nav button').forEach(n=>n.onclick=()=>{tab=n.dataset.t;document.querySelectorAll('nav button').forEach(x=>x.classList.toggle('on',x==n));render()});
+</script></body></html>
